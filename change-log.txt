@@ -1,0 +1,39 @@
+Change Log Shift-F3 Case Changer 0.52 - Beta - Compiled AutoHotKey script
+
+
++++Reference+++
+
+see: http://www.autohotkey.com/forum/viewtopic.php?t=55868 
+
+and follow up: http://www.autohotkey.com/forum/viewtopic.php?t=56008
+
+
++++To Do+++
+
+* Make script more reliable with large selections. Right now sporadically, large selection case changes will fail. For now just click Ctl-Z and try again, or select smaller patches.
+
+* Make the program work at all in Open Office Impress, which it doesn't now.  I'm sure there are other apps that don't work or work as well.
+
+
++++Change Log+++
+
+
+++Version 0.52++
+
+* Added header infromation by first creating an empty file via the template from the Windows New File Contet Menu.  This adds comment sections for Author, Script Function etc and also the ones regarding #NoEnv, SetWorkingDir %A_ScriptDir%.  An additional line with "SendMode Input" is commented out in the script and removed totally from the compilation script version.
+
+* Added code maybe first suggested by Neobrew here: http://www.autohotkey.com/forum/viewtopic.php?t=23654, that preserves at least text that existed on the clipboard before the shift-F3 keys were invoked.  There are two versions now, one which preserves the text on the clipboard, the other which does not, but may work in a larger number of applications like Excel.
+
+++Version 0.50++
+
+* Added sentence case function, which is by Laszlo from here: http://www.autohotkey.com/forum/viewtopic.php?t=55345
+
+* Added "None" Reverse case function
+
+++Version 0.22++
+
+* Original rewrite by "none" see the original post
+
+++Version 0.10++
+
+* 1st script version written using skrommel's CapShift - http://www.autohotkey.com/forum/viewtopic.php?t=4559 and HotKeyIt's RapidHotkey (with Laszlo's MorseKey) - http://www.autohotkey.com/forum/viewtopic.php?t=16951
