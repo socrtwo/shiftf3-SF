@@ -1,5 +1,10 @@
 # Shift+F3 Case Changer
 
+<!--PAGES_LINK_BANNER-->
+> 🌐 **Live page:** [https://socrtwo.github.io/shiftf3-SF/](https://socrtwo.github.io/shiftf3-SF/)  
+> 📦 **Releases:** [github.com/socrtwo/shiftf3-SF/releases](https://github.com/socrtwo/shiftf3-SF/releases)
+<!--/PAGES_LINK_BANNER-->
+
 Adds Word-style Shift+F3 text case cycling (lowercase → Title Case → UPPERCASE) to every Windows application. Select text anywhere, press Shift+F3, and it toggles the case.
 
 **Language:** AutoHotkey  
