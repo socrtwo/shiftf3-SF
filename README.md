@@ -1,9 +1,18 @@
-# Shift+F3 Case Changer
+<!--MODERNIZED:v1-->
+# Shiftf3
 
-<!--PAGES_LINK_BANNER-->
-> 🌐 **Live page:** [https://socrtwo.github.io/shiftf3-SF/](https://socrtwo.github.io/shiftf3-SF/)  
-> 📦 **Releases:** [github.com/socrtwo/shiftf3-SF/releases](https://github.com/socrtwo/shiftf3-SF/releases)
-<!--/PAGES_LINK_BANNER-->
+> Migrated from SourceForge via SF2GH Migrator
+
+[![Live page](https://img.shields.io/badge/live-page-ff2e93?style=for-the-badge)](https://socrtwo.github.io/shiftf3-SF/)
+[![Releases](https://img.shields.io/github/v/release/socrtwo/shiftf3-SF?style=for-the-badge&color=7c3aed)](https://github.com/socrtwo/shiftf3-SF/releases)
+[![License](https://img.shields.io/github/license/socrtwo/shiftf3-SF?style=for-the-badge&color=22d3ee)](https://github.com/socrtwo/shiftf3-SF/blob/main/LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/socrtwo/shiftf3-SF?style=for-the-badge&color=34d399)](https://github.com/socrtwo/shiftf3-SF/commits)
+
+🌐 **Live:** https://socrtwo.github.io/shiftf3-SF/  
+📦 **Downloads:** [Releases](https://github.com/socrtwo/shiftf3-SF/releases)  
+📂 **Source:** [socrtwo/shiftf3-SF](https://github.com/socrtwo/shiftf3-SF)
+
+---
 
 Adds Word-style Shift+F3 text case cycling (lowercase → Title Case → UPPERCASE) to every Windows application. Select text anywhere, press Shift+F3, and it toggles the case.
 
@@ -57,3 +66,25 @@ Contributions are welcome! Feel free to:
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## 📜 SourceForge heritage
+
+This project originated on **SourceForge** before being migrated to GitHub. The legacy SourceForge entry, if still available, can be searched at:
+
+🔗 https://sourceforge.net/projects/shiftf3/
+
+The repository here at `socrtwo/shiftf3-SF` is the canonical, actively-maintained home. All future updates, issue tracking, and releases happen on GitHub.
+
+## 🛠️ Contributing
+
+Issues and pull requests are welcome at [https://github.com/socrtwo/shiftf3-SF/issues](https://github.com/socrtwo/shiftf3-SF/issues).
+
+## 📝 License
+
+See the [LICENSE](https://github.com/socrtwo/shiftf3-SF/blob/main/LICENSE) file in this repository. If no license file is present, the project is shared as-is for reference and personal use; please contact the maintainer for other use cases.
+
+---
+
+*Maintained by [@socrtwo](https://github.com/socrtwo)*
