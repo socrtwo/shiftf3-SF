@@ -18,6 +18,31 @@ and follow up: http://www.autohotkey.com/forum/viewtopic.php?t=56008
 +++Change Log+++
 
 
+++Version 1.0.0 (multi-platform)++
+
+* Modernized the project from a Windows-only AutoHotkey script into a
+  multi-platform release covering Windows, macOS, Linux, ChromeOS,
+  Android, iOS, and the web.
+* Added an installable PWA in `web/` (offline-capable via service
+  worker, registers as a Web Share Target on Android/ChromeOS).
+* Added a Manifest V3 browser extension in `extension/` that adds
+  Shift+F3 case-cycling to every editable field on every webpage.
+* Ported the original AHK v1 script to AutoHotkey v2 in
+  `windows/shift-F3-case-changer.ahk`. The legacy v1 script is still
+  shipped for backwards compatibility.
+* Added a cross-platform Python daemon in `desktop/` that captures
+  Shift+F3 globally on Windows, macOS, and Linux using `pynput` +
+  `pyperclip`. Pre-built binaries ship with each release.
+* Added an iOS Shortcut + Android Tasker recipe that share text into
+  the PWA via the system share sheet.
+* Authored a GitHub Actions release workflow that compiles a
+  Windows `.exe` from the AHK v2 script, builds Python binaries for
+  Windows/macOS/Linux, zips the extension and the PWA, and attaches
+  every artifact to the GitHub Release on `v*` tag pushes.
+* Centralized the case-cycle logic in three mirrored implementations
+  (JS for web, JS for the extension, Python for desktop) so every
+  platform produces identical output.
+
 ++Version 0.52++
 
 * Added header infromation by first creating an empty file via the template from the Windows New File Contet Menu.  This adds comment sections for Author, Script Function etc and also the ones regarding #NoEnv, SetWorkingDir %A_ScriptDir%.  An additional line with "SendMode Input" is commented out in the script and removed totally from the compilation script version.

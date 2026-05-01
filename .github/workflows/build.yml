@@ -1,33 +1,60 @@
-name: Check Shift F3 Case Changer
+name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
-  check:
-    name: AutoHotkey File Check
+  inventory:
+    name: Repo inventory
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: List AutoHotkey scripts
         run: |
           echo "AutoHotkey scripts in this project:"
-          find . -name "*.ahk" -exec echo "  {}" \;
-          echo ""
-          echo "AutoHotkey scripts require Windows + AutoHotkey runtime to execute."
-          echo "Download AutoHotkey from: https://www.autohotkey.com/"
-
+          find . -name "*.ahk" -not -path "./.git/*" -exec echo "  {}" \;
       - name: Count lines of code
         run: |
           total=0
-          for f in $(find . -name "*.ahk"); do
+          for f in $(find . -name "*.ahk" -not -path "./.git/*"); do
             lines=$(wc -l < "$f")
             echo "  $f: $lines lines"
             total=$((total + lines))
           done
           echo "Total: $total lines of AutoHotkey code"
+
+  case-engine:
+    name: Case engine smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m desktop.test_case_engine
+
+  web-validate:
+    name: Validate web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate manifest JSON
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('web/manifest.webmanifest','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('extension/manifest.json','utf8'))"
+      - name: Syntax-check JS sources
+        run: |
+          node --check web/case-engine.js
+          node --check web/app.js
+          node --check web/sw.js
+          node --check extension/case-engine.js
+          node --check extension/content.js
+          node --check extension/background.js
+          node --check extension/popup.js
