@@ -26,3 +26,26 @@ ehthumbs.db
 # Config with credentials
 config.php
 cookiefile
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+.venv/
+venv/
+build/
+dist/
+
+# PyInstaller
+*.spec
+
+# Node / tooling
+node_modules/
+
+# Editor / Mac
+.idea/
+.vscode/
+.DS_Store
+

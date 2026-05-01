@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shift+F3</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      width: 280px; margin: 0;
+      font-family: -apple-system, system-ui, 'Segoe UI', sans-serif;
+      background: linear-gradient(160deg, #0f0322, #1a0840);
+      color: #f5f3ff; padding: 14px;
+    }
+    h1 {
+      font-size: 0.95rem; margin: 0 0 10px;
+      background: linear-gradient(135deg, #ff2e93, #22d3ee);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    p { margin: 0 0 10px; font-size: 0.82rem; color: rgba(245,243,255,0.75); }
+    kbd {
+      display: inline-block; padding: 1px 6px; font-family: ui-monospace, monospace;
+      font-size: 0.78em; background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 5px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .row button {
+      flex: 1 1 auto; min-width: 100px;
+      padding: 7px 8px; font-size: 0.78rem; font-weight: 600;
+      background: rgba(124,58,237,0.2); color: #f5f3ff;
+      border: 1px solid rgba(124,58,237,0.45); border-radius: 8px; cursor: pointer;
+    }
+    .row button:hover { background: rgba(124,58,237,0.35); }
+    a { color: #22d3ee; text-decoration: none; font-size: 0.78rem; }
+    a:hover { text-decoration: underline; }
+    .footer { margin-top: 8px; font-size: 0.72rem; color: rgba(245,243,255,0.5); }
+  </style>
+</head>
+<body>
+  <h1>Shift+F3 Case Changer</h1>
+  <p>Press <kbd>Shift</kbd>+<kbd>F3</kbd> in any text field to cycle the case.</p>
+  <p>Or trigger one transform on the focused field:</p>
+  <div class="row">
+    <button data-do="invert">iNVERT</button>
+    <button data-do="lower">lower</button>
+    <button data-do="upper">UPPER</button>
+  </div>
+  <div class="row">
+    <button data-do="title">Title</button>
+    <button data-do="sentence">Sentence</button>
+  </div>
+  <p class="footer">
+    <a href="https://github.com/socrtwo/shiftf3-SF" target="_blank" rel="noopener">View on GitHub</a>
+  </p>
+  <script src="popup.js"></script>
+</body>
+</html>

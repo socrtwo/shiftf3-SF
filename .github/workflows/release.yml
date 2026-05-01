@@ -1,0 +1,192 @@
+name: Release multi-platform builds
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v1.0.0). Created if it doesn't exist."
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+  web:
+    needs: resolve-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package web build
+        run: |
+          mkdir -p dist
+          cd web && zip -r "../dist/shiftf3-web-${{ needs.resolve-tag.outputs.tag }}.zip" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: dist/*
+
+  extension:
+    needs: resolve-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package extension
+        run: |
+          mkdir -p dist
+          cd extension && zip -r "../dist/shiftf3-extension-${{ needs.resolve-tag.outputs.tag }}.zip" . -x "README.md"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension
+          path: dist/*
+
+  windows-ahk:
+    needs: resolve-tag
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install AutoHotkey v2
+        shell: powershell
+        run: |
+          choco install autohotkey --version=2.0.18 -y --no-progress
+      - name: Compile AHK script to .exe
+        shell: powershell
+        run: |
+          $ahk2exe = "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe"
+          if (-not (Test-Path $ahk2exe)) {
+            $ahk2exe = (Get-ChildItem -Recurse -Path "C:\Program Files\AutoHotkey" -Filter Ahk2Exe.exe | Select-Object -First 1).FullName
+          }
+          if (-not $ahk2exe) { throw "Ahk2Exe.exe not found." }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & "$ahk2exe" /in windows\shift-F3-case-changer.ahk /out dist\shift-F3-case-changer.exe /icon 32X32-shift-F3-case-changer-icon.ico
+      - name: Bundle Windows zip
+        shell: powershell
+        run: |
+          $tag = "${{ needs.resolve-tag.outputs.tag }}"
+          New-Item -ItemType Directory -Force -Path "dist\windows" | Out-Null
+          Copy-Item dist\shift-F3-case-changer.exe dist\windows\
+          Copy-Item windows\shift-F3-case-changer.ahk dist\windows\
+          Copy-Item windows\README.md dist\windows\
+          Copy-Item shift-F3-case-changer-0.52.ahk dist\windows\
+          Copy-Item shift-F3-case-changer-0.52.ahk.ini dist\windows\
+          Copy-Item shift-F3-case-changer-0.52-no-clipboard-preservation.ahk dist\windows\
+          Copy-Item LICENSE dist\windows\
+          Compress-Archive -Path dist\windows\* -DestinationPath "dist\shiftf3-windows-$tag.zip" -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/shift-F3-case-changer.exe
+            dist/shiftf3-windows-*.zip
+
+  desktop-binaries:
+    needs: resolve-tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: shiftf3-linux
+            archive: shiftf3-linux-${{ needs.resolve-tag.outputs.tag }}.tar.gz
+            kind: linux
+          - os: macos-latest
+            asset: shiftf3-macos
+            archive: shiftf3-macos-${{ needs.resolve-tag.outputs.tag }}.tar.gz
+            kind: macos
+          - os: windows-latest
+            asset: shiftf3-py.exe
+            archive: shiftf3-py-windows-${{ needs.resolve-tag.outputs.tag }}.zip
+            kind: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller pynput pyperclip
+      - name: System deps (Linux only)
+        if: matrix.kind == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xclip xsel libxkbcommon-x11-0
+      - name: Build single-file binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          pyinstaller --onefile --name "${{ matrix.asset }}" \
+              --collect-submodules pynput \
+              desktop/__main__.py
+      - name: Run case-engine smoke tests
+        run: python -m desktop.test_case_engine
+      - name: Archive
+        shell: bash
+        run: |
+          mkdir -p out
+          if [ "${{ matrix.kind }}" = "windows" ]; then
+            cd dist && 7z a "../out/${{ matrix.archive }}" "${{ matrix.asset }}"
+          else
+            cd dist && tar -czf "../out/${{ matrix.archive }}" "${{ matrix.asset }}"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.kind }}
+          path: |
+            out/*
+            dist/${{ matrix.asset }}
+
+  publish:
+    needs: [resolve-tag, web, extension, windows-ahk, desktop-binaries]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.exe" \) -exec cp {} release/ \;
+          ls -la release/
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.resolve-tag.outputs.tag }}
+          name: Shift+F3 Case Changer ${{ needs.resolve-tag.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            release/*
+          body: |
+            ## Multi-platform Shift+F3 Case Changer
+
+            Each asset below targets one of the supported platforms. The
+            **web** zip is the same source the GitHub Pages site serves
+            from `/`, and the same source you can self-host or sideload
+            on a tablet.
+
+            | Asset | Platform | How to use |
+            | --- | --- | --- |
+            | `shiftf3-windows-…zip` | Windows 10/11 | Either run `shift-F3-case-changer.exe` directly, or open the bundled `.ahk` with AutoHotkey v2. |
+            | `shiftf3-py-windows-…zip` | Windows (no AHK) | Standalone Python build. Run `shiftf3-py.exe`. |
+            | `shiftf3-macos-…tar.gz` | macOS 12+ | `tar -xzf …` then `chmod +x shiftf3-macos && ./shiftf3-macos`. Grant Accessibility + Input Monitoring permissions. |
+            | `shiftf3-linux-…tar.gz` | Linux x64 | `tar -xzf …` then `chmod +x shiftf3-linux && ./shiftf3-linux`. X11 sessions only — Wayland users should use the browser extension. |
+            | `shiftf3-extension-…zip` | ChromeOS / Chrome / Edge / Brave / Firefox | Unzip and *Load unpacked* in the browser's extensions page. |
+            | `shiftf3-web-…zip` | Web / Android / iOS (PWA) | Self-host or open `index.html`. The hosted version lives at https://socrtwo.github.io/shiftf3-SF/. |
