@@ -61,52 +61,38 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download AutoHotkey v2 + Ahk2Exe compiler
+      - name: Install AutoHotkey v2 (silent)
         shell: powershell
         env:
           AHK_VERSION: "2.0.18"
-          AHK2EXE_TAG: "Ahk2Exe1.1.37.02a2"
         run: |
           $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force -Path tools\ahk2\Compiler | Out-Null
+          $url = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v$env:AHK_VERSION/AutoHotkey_${env:AHK_VERSION}_setup.exe"
+          $installer = "$env:RUNNER_TEMP\ahk-setup.exe"
+          Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
 
-          # 1) AutoHotkey runtime (provides AutoHotkey64.exe used as the compile base).
-          $runtimeUrl = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v$env:AHK_VERSION/AutoHotkey_$env:AHK_VERSION.zip"
-          $runtimeZip = "$env:RUNNER_TEMP\ahk-v2.zip"
-          Invoke-WebRequest -UseBasicParsing -Uri $runtimeUrl -OutFile $runtimeZip
-          Expand-Archive -Force -Path $runtimeZip -DestinationPath tools\ahk2
-
-          # 2) Ahk2Exe compiler (shipped from a separate repo).
-          $compilerUrl = "https://github.com/AutoHotkey/Ahk2Exe/releases/download/$env:AHK2EXE_TAG/$env:AHK2EXE_TAG.zip"
-          $compilerZip = "$env:RUNNER_TEMP\ahk2exe.zip"
-          Invoke-WebRequest -UseBasicParsing -Uri $compilerUrl -OutFile $compilerZip
-          Expand-Archive -Force -Path $compilerZip -DestinationPath tools\ahk2\Compiler
-
-          Get-ChildItem -Recurse tools\ahk2 -Filter Ahk2Exe.exe | ForEach-Object { Write-Host "Compiler: $($_.FullName)" }
-          Get-ChildItem -Recurse tools\ahk2 -Filter AutoHotkey64.exe | ForEach-Object { Write-Host "Base: $($_.FullName)" }
-      - name: Stage Ahk2Exe BIN base files
-        shell: powershell
-        run: |
-          # Ahk2Exe looks for base files in <Compiler>\BIN\*.bin by default.
-          # The runtime .exe doubles as a valid base when copied with the
-          # expected name — Ahk2Exe accepts it as the script's runtime stub.
-          $ErrorActionPreference = 'Stop'
-          $ahk2exeDir = (Get-ChildItem -Recurse tools\ahk2 -Filter Ahk2Exe.exe | Select-Object -First 1).Directory.FullName
-          $binDir = Join-Path $ahk2exeDir "BIN"
-          New-Item -ItemType Directory -Force -Path $binDir | Out-Null
-          $ahkRoot = Split-Path $ahk2exeDir -Parent
-          Copy-Item (Join-Path $ahkRoot "AutoHotkey64.exe") (Join-Path $binDir "AutoHotkey64.bin") -Force
-          if (Test-Path (Join-Path $ahkRoot "AutoHotkey32.exe")) {
-            Copy-Item (Join-Path $ahkRoot "AutoHotkey32.exe") (Join-Path $binDir "AutoHotkey32.bin") -Force
+          # The AHK v2 setup is itself an AHK script. Its silent-install
+          # flag is /install — it lays down the runtime, the compiler,
+          # and the upx/mpress helpers in C:\Program Files\AutoHotkey\
+          # with the canonical layout Ahk2Exe expects.
+          $proc = Start-Process -FilePath $installer -ArgumentList "/install" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            throw "AHK installer failed with exit code $($proc.ExitCode)."
           }
-          Get-ChildItem $binDir | ForEach-Object { Write-Host ("  BIN: {0} ({1:N0} bytes)" -f $_.Name, $_.Length) }
+
+          $ahkRoot = "C:\Program Files\AutoHotkey"
+          if (-not (Test-Path $ahkRoot)) { throw "AHK install dir missing: $ahkRoot" }
+          Get-ChildItem -Recurse $ahkRoot -Include Ahk2Exe.exe,AutoHotkey64.exe,upx.exe,mpress.exe -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "  $($_.FullName)"
+          }
+          "AHK_HOME=$ahkRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Compile AHK script to .exe
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $ahk2exe = (Get-ChildItem -Recurse tools\ahk2 -Filter Ahk2Exe.exe | Select-Object -First 1).FullName
-          if (-not $ahk2exe) { throw "Ahk2Exe.exe not found." }
+          $ahk2exe = (Get-ChildItem -Recurse "$env:AHK_HOME" -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          if (-not $ahk2exe) { throw "Ahk2Exe.exe not found under $env:AHK_HOME." }
 
           $repo   = (Get-Location).Path
           $script = Join-Path $repo "windows\shift-F3-case-changer.ahk"
@@ -124,21 +110,18 @@ jobs:
           Write-Host "out    : $outExe"
           Write-Host "icon   : $icon"
 
-          # Ahk2Exe is a GUI .exe; Start-Process with -Wait gives us a
-          # reliable exit code where & "$ahk2exe" sometimes does not.
-          # /compress 0 skips UPX/MPRESS — those tools aren't on the runner
-          # and Ahk2Exe pops an invisible "compressor not found" dialog
-          # otherwise, hanging the job indefinitely.
+          # /compress 0 keeps the build deterministic; the installer ships
+          # upx.exe so compression would also work, but skipping it gives
+          # us a smaller log surface.
           $proc = Start-Process -FilePath $ahk2exe `
               -ArgumentList @("/in", $script, "/out", $outExe, "/icon", $icon, "/compress", "0") `
               -NoNewWindow -PassThru
           if (-not $proc.WaitForExit(120000)) {
-            Write-Host "Ahk2Exe did not finish within 120s — likely waiting on a hidden dialog. Killing."
             try { $proc.Kill() } catch {}
             $proc.WaitForExit()
-            Write-Host "--- compiler tree ---"
-            Get-ChildItem -Recurse (Split-Path $ahk2exe -Parent) | ForEach-Object { Write-Host "  $($_.FullName)" }
-            throw "Ahk2Exe hung — see compiler tree above."
+            Write-Host "--- AHK_HOME tree ---"
+            Get-ChildItem -Recurse $env:AHK_HOME | ForEach-Object { Write-Host "  $($_.FullName)" }
+            throw "Ahk2Exe hung — see tree above."
           }
           $exit = $proc.ExitCode
           Write-Host "Ahk2Exe exit: $exit"
@@ -146,10 +129,8 @@ jobs:
           if ($exit -ne 0 -or -not (Test-Path $outExe)) {
             Write-Host "--- dist tree ---"
             Get-ChildItem -Recurse $outDir -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.FullName)" }
-            Write-Host "--- compiler tree ---"
-            Get-ChildItem -Recurse (Split-Path $ahk2exe -Parent) | ForEach-Object { Write-Host "  $($_.FullName)" }
-            Write-Host "--- repo .exe scan ---"
-            Get-ChildItem -Recurse $repo -Filter *.exe | ForEach-Object { Write-Host "  $($_.FullName)" }
+            Write-Host "--- AHK_HOME tree ---"
+            Get-ChildItem -Recurse $env:AHK_HOME | ForEach-Object { Write-Host "  $($_.FullName)" }
             throw "Ahk2Exe did not produce $outExe (exit=$exit)."
           }
           Write-Host ("Built {0} ({1:N0} bytes)" -f $outExe, (Get-Item $outExe).Length)
