@@ -84,16 +84,64 @@ jobs:
 
           Get-ChildItem -Recurse tools\ahk2 -Filter Ahk2Exe.exe | ForEach-Object { Write-Host "Compiler: $($_.FullName)" }
           Get-ChildItem -Recurse tools\ahk2 -Filter AutoHotkey64.exe | ForEach-Object { Write-Host "Base: $($_.FullName)" }
+      - name: Stage Ahk2Exe BIN base files
+        shell: powershell
+        run: |
+          # Ahk2Exe looks for base files in <Compiler>\BIN\*.bin by default.
+          # The runtime .exe doubles as a valid base when copied with the
+          # expected name — Ahk2Exe accepts it as the script's runtime stub.
+          $ErrorActionPreference = 'Stop'
+          $ahk2exeDir = (Get-ChildItem -Recurse tools\ahk2 -Filter Ahk2Exe.exe | Select-Object -First 1).Directory.FullName
+          $binDir = Join-Path $ahk2exeDir "BIN"
+          New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+          $ahkRoot = Split-Path $ahk2exeDir -Parent
+          Copy-Item (Join-Path $ahkRoot "AutoHotkey64.exe") (Join-Path $binDir "AutoHotkey64.bin") -Force
+          if (Test-Path (Join-Path $ahkRoot "AutoHotkey32.exe")) {
+            Copy-Item (Join-Path $ahkRoot "AutoHotkey32.exe") (Join-Path $binDir "AutoHotkey32.bin") -Force
+          }
+          Get-ChildItem $binDir | ForEach-Object { Write-Host ("  BIN: {0} ({1:N0} bytes)" -f $_.Name, $_.Length) }
+
       - name: Compile AHK script to .exe
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $ahk2exe = (Get-ChildItem -Recurse tools\ahk2 -Filter Ahk2Exe.exe | Select-Object -First 1).FullName
-          if (-not $ahk2exe) { throw "Ahk2Exe.exe not found in portable bundle." }
-          $base = (Get-ChildItem -Recurse tools\ahk2 -Filter AutoHotkey64.exe | Select-Object -First 1).FullName
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          & "$ahk2exe" /in windows\shift-F3-case-changer.ahk /out dist\shift-F3-case-changer.exe /base "$base" /icon 32X32-shift-F3-case-changer-icon.ico
-          if (-not (Test-Path dist\shift-F3-case-changer.exe)) { throw "Compilation produced no output." }
+          if (-not $ahk2exe) { throw "Ahk2Exe.exe not found." }
+
+          $repo   = (Get-Location).Path
+          $script = Join-Path $repo "windows\shift-F3-case-changer.ahk"
+          $icon   = Join-Path $repo "32X32-shift-F3-case-changer-icon.ico"
+          $outDir = Join-Path $repo "dist"
+          $outExe = Join-Path $outDir "shift-F3-case-changer.exe"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+          foreach ($p in @($script, $icon)) {
+            if (-not (Test-Path $p)) { throw "Missing input: $p" }
+          }
+
+          Write-Host "ahk2exe: $ahk2exe"
+          Write-Host "in     : $script"
+          Write-Host "out    : $outExe"
+          Write-Host "icon   : $icon"
+
+          # Ahk2Exe is a GUI .exe; Start-Process with -Wait gives us a
+          # reliable exit code where & "$ahk2exe" sometimes does not.
+          $proc = Start-Process -FilePath $ahk2exe `
+              -ArgumentList @("/in", $script, "/out", $outExe, "/icon", $icon) `
+              -NoNewWindow -Wait -PassThru
+          $exit = $proc.ExitCode
+          Write-Host "Ahk2Exe exit: $exit"
+
+          if ($exit -ne 0 -or -not (Test-Path $outExe)) {
+            Write-Host "--- dist tree ---"
+            Get-ChildItem -Recurse $outDir -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.FullName)" }
+            Write-Host "--- compiler tree ---"
+            Get-ChildItem -Recurse (Split-Path $ahk2exe -Parent) | ForEach-Object { Write-Host "  $($_.FullName)" }
+            Write-Host "--- repo .exe scan ---"
+            Get-ChildItem -Recurse $repo -Filter *.exe | ForEach-Object { Write-Host "  $($_.FullName)" }
+            throw "Ahk2Exe did not produce $outExe (exit=$exit)."
+          }
+          Write-Host ("Built {0} ({1:N0} bytes)" -f $outExe, (Get-Item $outExe).Length)
       - name: Bundle Windows zip
         shell: powershell
         run: |
