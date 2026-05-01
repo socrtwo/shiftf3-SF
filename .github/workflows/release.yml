@@ -126,9 +126,20 @@ jobs:
 
           # Ahk2Exe is a GUI .exe; Start-Process with -Wait gives us a
           # reliable exit code where & "$ahk2exe" sometimes does not.
+          # /compress 0 skips UPX/MPRESS — those tools aren't on the runner
+          # and Ahk2Exe pops an invisible "compressor not found" dialog
+          # otherwise, hanging the job indefinitely.
           $proc = Start-Process -FilePath $ahk2exe `
-              -ArgumentList @("/in", $script, "/out", $outExe, "/icon", $icon) `
-              -NoNewWindow -Wait -PassThru
+              -ArgumentList @("/in", $script, "/out", $outExe, "/icon", $icon, "/compress", "0") `
+              -NoNewWindow -PassThru
+          if (-not $proc.WaitForExit(120000)) {
+            Write-Host "Ahk2Exe did not finish within 120s — likely waiting on a hidden dialog. Killing."
+            try { $proc.Kill() } catch {}
+            $proc.WaitForExit()
+            Write-Host "--- compiler tree ---"
+            Get-ChildItem -Recurse (Split-Path $ahk2exe -Parent) | ForEach-Object { Write-Host "  $($_.FullName)" }
+            throw "Ahk2Exe hung — see compiler tree above."
+          }
           $exit = $proc.ExitCode
           Write-Host "Ahk2Exe exit: $exit"
 
