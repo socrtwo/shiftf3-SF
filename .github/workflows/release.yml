@@ -57,102 +57,38 @@ jobs:
           path: dist/*
 
   windows-ahk:
+    # Bundle the AutoHotkey source script + legacy v1 scripts for Windows
+    # users who want the original AHK experience. We deliberately don't
+    # compile to .exe in CI: the AHK v2 setup .exe and Ahk2Exe both hang
+    # on a hidden GUI prompt under windows-latest's non-interactive
+    # session (UAC-style elevation re-prompt + UPX missing dialog), even
+    # with /install and /compress 0. Users who want a binary compile
+    # locally with AHK v2 in <10s, or use the standalone Python build
+    # (shiftf3-py-windows-*.zip) which has no AutoHotkey dependency.
     needs: resolve-tag
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install AutoHotkey v2 (silent)
-        shell: powershell
-        env:
-          AHK_VERSION: "2.0.18"
+      - name: Bundle Windows AHK source zip
+        shell: bash
         run: |
-          $ErrorActionPreference = 'Stop'
-          $url = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v$env:AHK_VERSION/AutoHotkey_${env:AHK_VERSION}_setup.exe"
-          $installer = "$env:RUNNER_TEMP\ahk-setup.exe"
-          Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
-
-          # The AHK v2 setup is itself an AHK script. Its silent-install
-          # flag is /install — it lays down the runtime, the compiler,
-          # and the upx/mpress helpers in C:\Program Files\AutoHotkey\
-          # with the canonical layout Ahk2Exe expects.
-          $proc = Start-Process -FilePath $installer -ArgumentList "/install" -Wait -PassThru
-          if ($proc.ExitCode -ne 0) {
-            throw "AHK installer failed with exit code $($proc.ExitCode)."
-          }
-
-          $ahkRoot = "C:\Program Files\AutoHotkey"
-          if (-not (Test-Path $ahkRoot)) { throw "AHK install dir missing: $ahkRoot" }
-          Get-ChildItem -Recurse $ahkRoot -Include Ahk2Exe.exe,AutoHotkey64.exe,upx.exe,mpress.exe -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "  $($_.FullName)"
-          }
-          "AHK_HOME=$ahkRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Compile AHK script to .exe
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $ahk2exe = (Get-ChildItem -Recurse "$env:AHK_HOME" -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-          if (-not $ahk2exe) { throw "Ahk2Exe.exe not found under $env:AHK_HOME." }
-
-          $repo   = (Get-Location).Path
-          $script = Join-Path $repo "windows\shift-F3-case-changer.ahk"
-          $icon   = Join-Path $repo "32X32-shift-F3-case-changer-icon.ico"
-          $outDir = Join-Path $repo "dist"
-          $outExe = Join-Path $outDir "shift-F3-case-changer.exe"
-          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
-          foreach ($p in @($script, $icon)) {
-            if (-not (Test-Path $p)) { throw "Missing input: $p" }
-          }
-
-          Write-Host "ahk2exe: $ahk2exe"
-          Write-Host "in     : $script"
-          Write-Host "out    : $outExe"
-          Write-Host "icon   : $icon"
-
-          # /compress 0 keeps the build deterministic; the installer ships
-          # upx.exe so compression would also work, but skipping it gives
-          # us a smaller log surface.
-          $proc = Start-Process -FilePath $ahk2exe `
-              -ArgumentList @("/in", $script, "/out", $outExe, "/icon", $icon, "/compress", "0") `
-              -NoNewWindow -PassThru
-          if (-not $proc.WaitForExit(120000)) {
-            try { $proc.Kill() } catch {}
-            $proc.WaitForExit()
-            Write-Host "--- AHK_HOME tree ---"
-            Get-ChildItem -Recurse $env:AHK_HOME | ForEach-Object { Write-Host "  $($_.FullName)" }
-            throw "Ahk2Exe hung — see tree above."
-          }
-          $exit = $proc.ExitCode
-          Write-Host "Ahk2Exe exit: $exit"
-
-          if ($exit -ne 0 -or -not (Test-Path $outExe)) {
-            Write-Host "--- dist tree ---"
-            Get-ChildItem -Recurse $outDir -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.FullName)" }
-            Write-Host "--- AHK_HOME tree ---"
-            Get-ChildItem -Recurse $env:AHK_HOME | ForEach-Object { Write-Host "  $($_.FullName)" }
-            throw "Ahk2Exe did not produce $outExe (exit=$exit)."
-          }
-          Write-Host ("Built {0} ({1:N0} bytes)" -f $outExe, (Get-Item $outExe).Length)
-      - name: Bundle Windows zip
-        shell: powershell
-        run: |
-          $tag = "${{ needs.resolve-tag.outputs.tag }}"
-          New-Item -ItemType Directory -Force -Path "dist\windows" | Out-Null
-          Copy-Item dist\shift-F3-case-changer.exe dist\windows\
-          Copy-Item windows\shift-F3-case-changer.ahk dist\windows\
-          Copy-Item windows\README.md dist\windows\
-          Copy-Item shift-F3-case-changer-0.52.ahk dist\windows\
-          Copy-Item shift-F3-case-changer-0.52.ahk.ini dist\windows\
-          Copy-Item shift-F3-case-changer-0.52-no-clipboard-preservation.ahk dist\windows\
-          Copy-Item LICENSE dist\windows\
-          Compress-Archive -Path dist\windows\* -DestinationPath "dist\shiftf3-windows-$tag.zip" -Force
+          set -euo pipefail
+          tag="${{ needs.resolve-tag.outputs.tag }}"
+          mkdir -p dist/windows
+          cp windows/shift-F3-case-changer.ahk dist/windows/
+          cp windows/README.md dist/windows/
+          cp shift-F3-case-changer-0.52.ahk dist/windows/
+          cp shift-F3-case-changer-0.52.ahk.ini dist/windows/
+          cp shift-F3-case-changer-0.52-no-clipboard-preservation.ahk dist/windows/
+          cp shift-F3-case-changer-0.52-no-clipboard-preservation.ahk.ini dist/windows/
+          cp 32X32-shift-F3-case-changer-icon.ico dist/windows/
+          cp LICENSE dist/windows/
+          cd dist && zip -r "shiftf3-windows-$tag.zip" windows
+          ls -la
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: |
-            dist/shift-F3-case-changer.exe
-            dist/shiftf3-windows-*.zip
+          path: dist/shiftf3-windows-*.zip
 
   desktop-binaries:
     needs: resolve-tag
@@ -243,8 +179,8 @@ jobs:
 
             | Asset | Platform | How to use |
             | --- | --- | --- |
-            | `shiftf3-windows-…zip` | Windows 10/11 | Either run `shift-F3-case-changer.exe` directly, or open the bundled `.ahk` with AutoHotkey v2. |
-            | `shiftf3-py-windows-…zip` | Windows (no AHK) | Standalone Python build. Run `shiftf3-py.exe`. |
+            | `shiftf3-windows-…zip` | Windows 10/11 | AutoHotkey source bundle. Install AHK v2 (https://www.autohotkey.com), then double-click `shift-F3-case-changer.ahk`. Right-click → *Compile Script* if you want a standalone `.exe`. |
+            | `shiftf3-py-windows-…zip` | Windows (no AHK) | Standalone Python build — no AutoHotkey required. Run `shiftf3-py.exe`. |
             | `shiftf3-macos-…tar.gz` | macOS 12+ | `tar -xzf …` then `chmod +x shiftf3-macos && ./shiftf3-macos`. Grant Accessibility + Input Monitoring permissions. |
             | `shiftf3-linux-…tar.gz` | Linux x64 | `tar -xzf …` then `chmod +x shiftf3-linux && ./shiftf3-linux`. X11 sessions only — Wayland users should use the browser extension. |
             | `shiftf3-extension-…zip` | ChromeOS / Chrome / Edge / Brave / Firefox | Unzip and *Load unpacked* in the browser's extensions page. |
