@@ -27,20 +27,21 @@ presses keep advancing the cycle.
 
 ## Installation
 
-| Platform   | What you get                                | How to install |
-| ---------- | ------------------------------------------- | -------------- |
-| **Windows**  | `.exe` (no AHK needed) **or** AHK v2 / v1 script | [windows/README.md](windows/README.md) |
-| **macOS**    | Single-file binary, global Shift+F3 hotkey  | [desktop/README.md](desktop/README.md) |
-| **Linux**    | Single-file binary, global Shift+F3 hotkey  | [desktop/README.md](desktop/README.md) |
-| **ChromeOS** | Browser extension + PWA                     | [extension/README.md](extension/README.md) |
-| **Android**  | Installable PWA (+ optional Tasker recipe)  | [mobile/README.md](mobile/README.md) |
-| **iOS**      | Installable PWA (+ optional Shortcut)       | [mobile/ios-shortcut.md](mobile/ios-shortcut.md) |
-| **Web**      | Hosted PWA at the live page                 | [https://socrtwo.github.io/shiftf3-SF/](https://socrtwo.github.io/shiftf3-SF/) |
+| Platform   | Release asset                          | What you get | Notes |
+| ---------- | -------------------------------------- | ------------ | ----- |
+| **Windows** (with AHK) | `shiftf3-windows-<v>.zip`     | Modernized AHK v2 script + legacy v1 scripts + icon | Requires [AutoHotkey v2](https://www.autohotkey.com/). Right-click → *Compile Script* if you want a standalone `.exe`. See [windows/README.md](windows/README.md). |
+| **Windows** (no AHK)   | `shiftf3-py-windows-<v>.zip`  | `shiftf3-py.exe` — standalone, no runtime needed | Same global Shift+F3 hotkey, built with PyInstaller. See [desktop/README.md](desktop/README.md). |
+| **macOS**              | `shiftf3-macos-<v>.tar.gz`    | Single-file binary, global Shift+F3 hotkey | Grant Accessibility + Input Monitoring permissions on first run. |
+| **Linux**              | `shiftf3-linux-<v>.tar.gz`    | Single-file binary, global Shift+F3 hotkey | X11 sessions only — Wayland users should use the browser extension. |
+| **ChromeOS**           | `shiftf3-extension-<v>.zip`   | Manifest V3 extension for Chrome / Edge / Brave / Vivaldi | Adds Shift+F3 to every editable field on every webpage. See [extension/README.md](extension/README.md). |
+| **Android**            | (PWA) — install from the live page | Installable web app + optional Tasker recipe | See [mobile/README.md](mobile/README.md). |
+| **iOS**                | (PWA) — install from the live page | Installable web app + optional Shortcut | See [mobile/ios-shortcut.md](mobile/ios-shortcut.md). |
+| **Web**                | `shiftf3-web-<v>.zip` *or* the [live page](https://socrtwo.github.io/shiftf3-SF/) | Hosted PWA — works in any modern browser | Same source serves Web, Android, iOS, ChromeOS. |
 
-Pre-built binaries for every platform are attached to each
-[GitHub Release](https://github.com/socrtwo/shiftf3-SF/releases). The
-release workflow (`.github/workflows/release.yml`) rebuilds all
-artifacts whenever a `v*` tag is pushed.
+Every release attaches the matching asset(s) — see the
+[Releases page](https://github.com/socrtwo/shiftf3-SF/releases). The
+release workflow (`.github/workflows/release.yml`) rebuilds them on
+every `v*` tag push.
 
 ## Project layout
 
@@ -48,7 +49,7 @@ artifacts whenever a `v*` tag is pushed.
 .
 ├── web/             ← PWA (web release; covers Web/Android/iOS/ChromeOS)
 ├── extension/       ← Manifest V3 browser extension (Chrome/Edge/Brave/Firefox)
-├── windows/         ← Modernized AutoHotkey v2 script + standalone .exe build
+├── windows/         ← Modernized AutoHotkey v2 script (compile locally for .exe)
 ├── desktop/         ← Cross-platform Python daemon (Windows/macOS/Linux)
 ├── mobile/          ← iOS Shortcut & Android Tasker recipe
 ├── scripts/         ← Build helpers (icon generation, etc.)
@@ -74,8 +75,11 @@ the PWA (`web/case-engine.js`), JS for the extension content script
   `pyperclip` to read/write the system clipboard; mimics the original
   AHK behavior of saving and restoring the previous clipboard content.
 * **Windows AHK** — original v1 script preserved, plus a clean v2 port
-  in `windows/`. The release workflow compiles the v2 script to a
-  standalone `.exe` so users don't need AutoHotkey installed.
+  in `windows/`. Users with AutoHotkey installed can run the script
+  directly or right-click → *Compile Script* for a personal `.exe`.
+  Users who don't want AutoHotkey can grab the standalone Python
+  build (`shiftf3-py-windows-*.zip`) instead — same hotkey, no
+  runtime dependency.
 
 ## Development
 
@@ -101,9 +105,16 @@ CI runs the engine tests and JS syntax checks on every push (see
 ## Release
 
 Push a `v*` tag — the **Release multi-platform builds** workflow
-compiles `.exe`, builds PyInstaller binaries for Windows / macOS /
-Linux, zips the extension and the PWA, and uploads everything to a
-GitHub Release. Or run the workflow manually from the Actions tab.
+builds PyInstaller binaries for Windows / macOS / Linux, zips the
+AutoHotkey source, the browser extension, and the PWA, and uploads
+every artifact to a GitHub Release. Or run the workflow manually
+from the Actions tab with a tag input.
+
+The Windows AHK `.exe` is **not** compiled in CI — `Ahk2Exe` and the
+official AHK installer hang on hidden GUI prompts in the
+non-interactive runner environment. Users compile the script locally
+in <10 seconds with AutoHotkey installed, or use
+`shiftf3-py-windows-*.zip` for a no-runtime binary.
 
 ## Origin
 
