@@ -10,9 +10,14 @@ on:
         description: "Tag to publish (e.g. v1.0.0). Created if it doesn't exist."
         required: true
         default: "v1.0.0"
+      ref:
+        description: "Git ref to checkout (branch, tag, or SHA). Defaults to the workflow ref."
+        required: false
+        default: ""
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   resolve-tag:
@@ -33,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - name: Package web build
         run: |
           mkdir -p dist
@@ -47,6 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - name: Package extension
         run: |
           mkdir -p dist
@@ -69,6 +78,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - name: Bundle Windows AHK source zip
         shell: bash
         run: |
@@ -111,6 +122,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -132,6 +145,22 @@ jobs:
               desktop/__main__.py
       - name: Run case-engine smoke tests
         run: python -m desktop.test_case_engine
+      - name: Sign Windows binaries (Azure Trusted Signing)
+        if: matrix.kind == 'windows'
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          files-folder: dist
+          files-folder-filter: exe,msi,dll
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
       - name: Archive
         shell: bash
         run: |
@@ -153,6 +182,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
