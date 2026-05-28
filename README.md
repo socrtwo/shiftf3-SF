@@ -29,8 +29,9 @@ presses keep advancing the cycle.
 
 | Platform   | Release asset                          | What you get | Notes |
 | ---------- | -------------------------------------- | ------------ | ----- |
+| **Windows** (recommended) | `shiftf3-setup-<v>.exe`    | One-click installer | Installs to Program Files with a Start Menu shortcut, an optional **run-at-login** entry (recommended for a hotkey app), and an uninstaller. No AutoHotkey or Python needed. Built with [NSIS](https://nsis.sourceforge.io/) — see [windows/installer.nsi](windows/installer.nsi). |
+| **Windows** (portable) | `shiftf3-py-windows-<v>.zip`  | `shiftf3-py.exe` — standalone, no install | Same global Shift+F3 hotkey, built with PyInstaller — unzip and run. See [desktop/README.md](desktop/README.md). |
 | **Windows** (with AHK) | `shiftf3-windows-<v>.zip`     | Modernized AHK v2 script + legacy v1 scripts + icon | Requires [AutoHotkey v2](https://www.autohotkey.com/). Right-click → *Compile Script* if you want a standalone `.exe`. See [windows/README.md](windows/README.md). |
-| **Windows** (no AHK)   | `shiftf3-py-windows-<v>.zip`  | `shiftf3-py.exe` — standalone, no runtime needed | Same global Shift+F3 hotkey, built with PyInstaller. See [desktop/README.md](desktop/README.md). |
 | **macOS**              | `shiftf3-macos-<v>.tar.gz`    | Single-file binary, global Shift+F3 hotkey | Grant Accessibility + Input Monitoring permissions on first run. |
 | **Linux**              | `shiftf3-linux-<v>.tar.gz`    | Single-file binary, global Shift+F3 hotkey | X11 sessions only — Wayland users should use the browser extension. |
 | **ChromeOS**           | `shiftf3-extension-<v>.zip`   | Manifest V3 extension for Chrome / Edge / Brave / Vivaldi | Adds Shift+F3 to every editable field on every webpage. See [extension/README.md](extension/README.md). |

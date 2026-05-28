@@ -141,12 +141,20 @@ jobs:
           else
             cd dist && tar -czf "../out/${{ matrix.archive }}" "${{ matrix.asset }}"
           fi
+      - name: Build Windows installer (NSIS)
+        if: matrix.kind == 'windows'
+        shell: cmd
+        run: |
+          choco install nsis -y --no-progress
+          "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=${{ needs.resolve-tag.outputs.tag }} windows\installer.nsi
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.kind }}
+          # Publish the per-platform archive (and, on Windows, the NSIS
+          # installer). We deliberately do NOT upload the bare PyInstaller
+          # binary so no naked .exe is attached to the release.
           path: |
             out/*
-            dist/${{ matrix.asset }}
 
   publish:
     needs: [resolve-tag, web, extension, windows-ahk, desktop-binaries]
@@ -179,8 +187,9 @@ jobs:
 
             | Asset | Platform | How to use |
             | --- | --- | --- |
+            | `shiftf3-setup-…exe` | Windows 10/11 (recommended) | One-click installer — Start Menu shortcut, optional run-at-login, and an uninstaller. No AutoHotkey or Python required. |
             | `shiftf3-windows-…zip` | Windows 10/11 | AutoHotkey source bundle. Install AHK v2 (https://www.autohotkey.com), then double-click `shift-F3-case-changer.ahk`. Right-click → *Compile Script* if you want a standalone `.exe`. |
-            | `shiftf3-py-windows-…zip` | Windows (no AHK) | Standalone Python build — no AutoHotkey required. Run `shiftf3-py.exe`. |
+            | `shiftf3-py-windows-…zip` | Windows (portable) | Standalone portable Python build — no install, no AutoHotkey. Unzip and run `shiftf3-py.exe`. |
             | `shiftf3-macos-…tar.gz` | macOS 12+ | `tar -xzf …` then `chmod +x shiftf3-macos && ./shiftf3-macos`. Grant Accessibility + Input Monitoring permissions. |
             | `shiftf3-linux-…tar.gz` | Linux x64 | `tar -xzf …` then `chmod +x shiftf3-linux && ./shiftf3-linux`. X11 sessions only — Wayland users should use the browser extension. |
             | `shiftf3-extension-…zip` | ChromeOS / Chrome / Edge / Brave / Firefox | Unzip and *Load unpacked* in the browser's extensions page. |
