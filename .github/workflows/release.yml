@@ -42,6 +42,40 @@ jobs:
           name: web
           path: dist/*
 
+  chromeos:
+    # ChromeOS = install the PWA (first-class app on ChromeOS). This duplicates
+    # the same web/ bundle the `web` job ships, under an explicit ChromeOS name
+    # with a ChromeOS install note. (Chromebooks can also use the browser
+    # extension asset.)
+    needs: resolve-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package ChromeOS PWA build
+        run: |
+          mkdir -p dist _chromeos
+          cp -r web/. _chromeos/
+          {
+            echo "Shift+F3 Case Changer - ChromeOS"
+            echo ""
+            echo "ChromeOS treats PWAs as first-class apps."
+            echo ""
+            echo "Install (recommended):"
+            echo "  1. Open https://socrtwo.github.io/shiftf3-SF/ in Chrome."
+            echo "  2. Click the install icon in the address bar (or menu -> Install)."
+            echo "  3. It appears in your launcher and works offline."
+            echo ""
+            echo "Run from this bundle (offline): unzip into Files, open index.html in Chrome."
+            echo ""
+            echo "Alternative: the shiftf3-extension zip on this release can be"
+            echo "loaded as an unpacked browser extension on a Chromebook."
+          } > _chromeos/INSTALL-CHROMEOS.txt
+          cd _chromeos && zip -r "../dist/shiftf3-chromeos-${{ needs.resolve-tag.outputs.tag }}.zip" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chromeos
+          path: dist/*
+
   extension:
     needs: resolve-tag
     runs-on: ubuntu-latest
@@ -157,7 +191,7 @@ jobs:
             out/*
 
   publish:
-    needs: [resolve-tag, web, extension, windows-ahk, desktop-binaries]
+    needs: [resolve-tag, web, chromeos, extension, windows-ahk, desktop-binaries]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -192,5 +226,6 @@ jobs:
             | `shiftf3-py-windows-…zip` | Windows (portable) | Standalone portable Python build — no install, no AutoHotkey. Unzip and run `shiftf3-py.exe`. |
             | `shiftf3-macos-…tar.gz` | macOS 12+ | `tar -xzf …` then `chmod +x shiftf3-macos && ./shiftf3-macos`. Grant Accessibility + Input Monitoring permissions. |
             | `shiftf3-linux-…tar.gz` | Linux x64 | `tar -xzf …` then `chmod +x shiftf3-linux && ./shiftf3-linux`. X11 sessions only — Wayland users should use the browser extension. |
-            | `shiftf3-extension-…zip` | ChromeOS / Chrome / Edge / Brave / Firefox | Unzip and *Load unpacked* in the browser's extensions page. |
+            | `shiftf3-extension-…zip` | Chrome / Edge / Brave / Firefox (also works on ChromeOS) | Unzip and *Load unpacked* in the browser's extensions page. |
+            | `shiftf3-chromeos-…zip` | ChromeOS (PWA) | Install the PWA from Chrome, or open `index.html`. Same source as the web build. |
             | `shiftf3-web-…zip` | Web / Android / iOS (PWA) | Self-host or open `index.html`. The hosted version lives at https://socrtwo.github.io/shiftf3-SF/. |
