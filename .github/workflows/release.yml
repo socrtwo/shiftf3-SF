@@ -42,6 +42,84 @@ jobs:
           name: web
           path: dist/*
 
+  pwa-platforms:
+    # ChromeOS / Android / iOS are served by the same PWA payload as the
+    # web zip; each archive adds platform-specific install instructions.
+    needs: resolve-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package ChromeOS / Android / iOS PWA zips
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ needs.resolve-tag.outputs.tag }}"
+          mkdir -p dist
+          for platform in chromeos android ios; do
+            stage="stage-$platform"
+            rm -rf "$stage"
+            mkdir -p "$stage"
+            cp -r web/. "$stage/"
+            case "$platform" in
+              chromeos)
+                printf '%s\n' \
+                  "# Shift+F3 Case Changer $tag — ChromeOS" \
+                  '' \
+                  '## Install as an app (recommended)' \
+                  '' \
+                  '1. Open https://socrtwo.github.io/shiftf3-SF/ in Chrome.' \
+                  '2. Click the install icon in the address bar (or Chrome menu -> Cast, save, and share -> Install app).' \
+                  '3. The app appears in the ChromeOS launcher; pin it to the shelf for quick access.' \
+                  '' \
+                  '## Offline / self-hosted' \
+                  '' \
+                  '- This zip contains the same PWA the hosted page serves. Open index.html in Chrome, or host the folder on any static web server.' \
+                  '' \
+                  '## Tip' \
+                  '' \
+                  '- For system-wide Shift+F3 inside the browser, also see shiftf3-extension-*.zip (chrome://extensions -> enable Developer mode -> Load unpacked).' \
+                  > "$stage/INSTALL.md"
+                ;;
+              android)
+                printf '%s\n' \
+                  "# Shift+F3 Case Changer $tag — Android" \
+                  '' \
+                  '## Install as an app' \
+                  '' \
+                  '1. Open https://socrtwo.github.io/shiftf3-SF/ in Chrome on Android.' \
+                  '2. Tap the Chrome menu (three dots) -> "Install app" (or "Add to Home screen"), or accept the install banner.' \
+                  '3. The app launches full-screen from your home screen.' \
+                  '' \
+                  '## Offline / self-hosted' \
+                  '' \
+                  '- This zip contains the same PWA the hosted page serves; host it on any static web server if you prefer your own copy.' \
+                  > "$stage/INSTALL.md"
+                ;;
+              ios)
+                printf '%s\n' \
+                  "# Shift+F3 Case Changer $tag — iOS / iPadOS" \
+                  '' \
+                  '## Install as an app' \
+                  '' \
+                  '1. Open https://socrtwo.github.io/shiftf3-SF/ in Safari (required for install).' \
+                  '2. Tap the Share button -> "Add to Home Screen".' \
+                  '3. The app launches in standalone mode with no browser chrome.' \
+                  '' \
+                  '## Offline / self-hosted' \
+                  '' \
+                  '- This zip contains the same PWA the hosted page serves; host it on any static web server if you prefer your own copy.' \
+                  > "$stage/INSTALL.md"
+                ;;
+            esac
+            ( cd "$stage" && zip -qr "../dist/shiftf3-$platform-$tag.zip" . )
+            rm -rf "$stage"
+          done
+          ls -la dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pwa-platforms
+          path: dist/*
+
   extension:
     needs: resolve-tag
     runs-on: ubuntu-latest
@@ -149,7 +227,7 @@ jobs:
             dist/${{ matrix.asset }}
 
   publish:
-    needs: [resolve-tag, web, extension, windows-ahk, desktop-binaries]
+    needs: [resolve-tag, web, pwa-platforms, extension, windows-ahk, desktop-binaries]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -183,5 +261,8 @@ jobs:
             | `shiftf3-py-windows-…zip` | Windows (no AHK) | Standalone Python build — no AutoHotkey required. Run `shiftf3-py.exe`. |
             | `shiftf3-macos-…tar.gz` | macOS 12+ | `tar -xzf …` then `chmod +x shiftf3-macos && ./shiftf3-macos`. Grant Accessibility + Input Monitoring permissions. |
             | `shiftf3-linux-…tar.gz` | Linux x64 | `tar -xzf …` then `chmod +x shiftf3-linux && ./shiftf3-linux`. X11 sessions only — Wayland users should use the browser extension. |
-            | `shiftf3-extension-…zip` | ChromeOS / Chrome / Edge / Brave / Firefox | Unzip and *Load unpacked* in the browser's extensions page. |
-            | `shiftf3-web-…zip` | Web / Android / iOS (PWA) | Self-host or open `index.html`. The hosted version lives at https://socrtwo.github.io/shiftf3-SF/. |
+            | `shiftf3-extension-…zip` | Chrome / Edge / Brave / Firefox | Unzip and *Load unpacked* in the browser's extensions page. |
+            | `shiftf3-web-…zip` | Web (PWA) | Self-host or open `index.html`. The hosted version lives at https://socrtwo.github.io/shiftf3-SF/. |
+            | `shiftf3-chromeos-…zip` | ChromeOS | PWA + `INSTALL.md` — open https://socrtwo.github.io/shiftf3-SF/ in Chrome and click the address-bar **Install app** icon. The extension zip also works via *Load unpacked*. |
+            | `shiftf3-android-…zip` | Android | PWA + `INSTALL.md` — open the hosted page in Chrome and tap **Install app**. |
+            | `shiftf3-ios-…zip` | iOS / iPadOS | PWA + `INSTALL.md` — open the hosted page in Safari and tap Share → **Add to Home Screen**. |
